@@ -1,31 +1,174 @@
 ---
-title: "FinalExam"
-author: "Echo"
+title: "Final Exam"
+author: "Echo Nattinger (en6235)"
 date: "7/8/2021"
 output: word_document
 ---
-Github Repo Link: <https://github.com/enatt/Exam3>
+GITHUB REPO LINK: <https://github.com/enatt/Exam3>
 
 ```{r setup, message=FALSE}
 knitr::opts_chunk$set(message = FALSE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+rm(list=ls(all=TRUE))
 ```
 
-## Including Plots
+```{r}
+# Loading and preparing data
+library(WDI)
+library(tidyverse)
+female_lfp = WDI(country="all",
+                 indicator="SL.TLF.CACT.FE.ZS", 
+                 start=2010, end=2015, 
+                 extra=FALSE, cache=NULL)
 
-You can also embed plots, for example:
+female_lfp = female_lfp%>%
+  rename(flfp = SL.TLF.CACT.FE.ZS)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+flfp_no_NAs = na.omit(female_lfp, select=c("flp"))
+# Collapsing data
+collapsed_flfp = flfp_no_NAs%>%
+  group_by(country)%>%
+  summarize(average = mean(flfp),
+            iso2c = iso2c)
+
+# Which countries have average participation rates less than 15%
+q5 = collapsed_flfp %>%
+  filter(average < 15)
+q5
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r, message=TRUE}
+# Libraries
+library(sp)
+library(sf)
+library(geosphere)
+library(devtools)
+library(rnaturalearthhires)
+library(ggsflabel)
+library(mapdata)
+library(rio)
+library(tidyverse)
+library(labelled)
+library(data.table)
+library(googlesheets4)
+library(varhandle)
+library(ggrepel)
+library(rgeos)
+library(viridis)
+library(mapview)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(remotes)
+library(raster)
+library(Imap)
+
+# Loading map
+# Adding border data to female participation rate data
+world_borders = st_read("World_Borders.shp", stringsAsFactors=FALSE)
+borders = st_transform(world_borders, "+proj=longlat +ellps=WGS84 +datum=WGS84")
+rm(world_borders)
+
+# Changing the name of borders to make merging easier
+setnames(borders, "NAME", "country")
+setnames(borders, "ISO2", "iso2c")
+# Merging
+data_merged = left_join(borders, collapsed_flfp, by=c("iso2c"))
+data_merged = st_sf(data_merged)
+
+# Getting map of the world
+worldmap = ne_countries(scale="large", returnclass="sf")
+
+# Mapping the data
+ggplot()+
+  geom_sf(data=worldmap)+
+  geom_sf(data=data_merged, aes(fill=average))+
+  scale_fill_viridis(option="viridis")
+```
+Based on the above map, regions in Southern Africa have high amounts of female participation in the workforce. 
+
+```{r}
+# Mapping Africa
+africamap = ne_countries(continent="africa", scale="large", returnclass="sf")
+africadata = subset(data_merged, iso2c %in% africamap$iso_a2)
+ggplot()+
+  geom_sf(data=africamap)+
+  geom_sf(data=africadata, aes(fill=average))+
+  scale_fill_viridis(option="viridis")+
+  theme_void()
+
+```
+
+9. A Shiny app involves 1) a user-interface (UI), 2) a server, and 3) executing the Shiny app. Within the UI, you must specify both Inputs and Outputs. Within the server, you store directions in objects and use render functions to output what's stored in those objects. And when you execute the Shiny App, you specify the names of your UI an dserver. 
+
+```{r}
+# Loading and preparing PDF
+library(pdftools)
+library(tidytext)
+library(stringr)
+data(stop_words)
+USAID = pdf_text("PA00TNMJ.pdf")
+armeniatext = as.data.frame(USAID, stringAsFactors=FALSE)
+armeniatext$page = c(1:59)
+colnames(armeniatext)[which(names(armeniatext)=="USAID")] = "text"
+# Tokenize and remove stop words
+tidyarmenia = armeniatext%>%
+  unnest_tokens(word, text)%>%
+  anti_join(stop_words)
+# Word counts
+armenia_count = tidyarmenia%>%
+  count(word, sort=TRUE)%>%
+  top_n(5, n)
+armenia_count
+# The top five words are LAW, CORRUPTION, RULE, ARMENIA, and EUROPEAN
+```
+
+```{r}
+library(rvest)
+library(dplyr)
+library(ggplot2)
+library(xml2)
+# Loading webpage
+hot100exam = "https://www.billboard.com/charts/hot-100"
+hot100exam = read_html(hot100exam)
+# Getting nodes
+hot100nodes = hot100exam%>%
+  html_nodes("body")%>%
+  html_children()
+hot100nodes
+
+# Pulling data on RANK, ARTIST, TITLE, and LAST WEEK
+rank = hot100exam %>%
+  rvest::html_nodes("body")%>%
+  xml2::xml_find_all("//span[contains(@class,
+                     'chart-element__rank__number')]")%>%
+  rvest::html_text()
+
+artist = hot100exam %>%
+  rvest::html_nodes("body")%>%
+  xml2::xml_find_all("//span[contains(@class,
+                     'chart-element__information__artist')]")%>%
+  rvest::html_text()
+
+title = hot100exam %>%
+  rvest::html_nodes("body")%>%
+  xml2::xml_find_all("//span[contains(@class,
+                     'chart-element__information__song')]")%>%
+  rvest::html_text()
+
+lastweek= hot100exam%>%
+  html_nodes("body")%>%
+  xml_find_all("//span[contains(@class, 'chart-element__meta text--center color--secondary text--last')]")%>%
+  html_text()
+
+hot100df = data.frame(rank, artist, title, lastweek)
+```
+
+
+```{r}
+library(rio)
+export(collapsed_flfp, "collapsed_flfp.dta")
+```
+
