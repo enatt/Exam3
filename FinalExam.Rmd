@@ -101,7 +101,7 @@ ggplot()+
 
 ```
 
-9. A Shiny app involves 1) a user-interface (UI), 2) a server, and 3) executing the Shiny app. Within the UI, you must specify both Inputs and Outputs. Within the server, you store directions in objects and use render functions to output what's stored in those objects. And when you execute the Shiny App, you specify the names of your UI an dserver. 
+9. A Shiny app involves 1) a user-interface (UI), 2) a server, and 3) executing the Shiny app. Within the UI, you must specify both Inputs and Outputs within a fluidPage. Within the server function, you store directions in objects and use render functions to output what's stored in those objects. And when you execute the Shiny App, you specify the names of your UI an dserver. 
 
 ```{r}
 # Loading and preparing PDF
